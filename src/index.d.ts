@@ -178,13 +178,12 @@ interface AlyaNum extends BaseAlyaNum {
     /**
      * Converts the AlyaNum object into a displayable string.
      * 
-     * @param mode Mode of conversion to string
      * @returns Resulting string
      */
     toString(): string;
     /**
      * Converts the AlyaNum into a string with a number and suffix.
-     * Use the {@link changeSuffixes} method to edit the suffixes.
+     * Use the {@link AlyaNum.changeSuffixes} method to edit the suffixes.
      * If a suffix for the specified AlyaNum is not found, scientific notation is used.
      * 
      * @returns Resulting string
@@ -266,7 +265,7 @@ interface AlyaNumConstructor {
      * Create a new AlyaNum object from an OmegaNum. This function is mainly
      * reserved for migration of number libraries. (OnoeNum -> OmegaNum)
      * 
-     * @param onoeNum Object to migrate from. Will automatically detect when the object is already migrated
+     * @param onum Object to migrate from. Will automatically detect when the object is already migrated
      * @returns Resulting AlyaNum object
      */
     fromOmega: (onum: [number, number[]]) => AlyaNum;
@@ -343,7 +342,7 @@ interface AlyaNumConstructor {
     toString: (number: Number) => string;
     /**
      * Converts the AlyaNum into a string with a number and suffix.
-     * Use the {@link AlyaNum.changeSuffixes} method to edit the suffixes.
+     * Use the {@link changeSuffixes} method to edit the suffixes.
      * If a suffix for the specified AlyaNum is not found, scientific notation is used.
      * 
      * @param number AlyaNum object
