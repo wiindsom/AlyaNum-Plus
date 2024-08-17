@@ -37,7 +37,7 @@ type Suffixes = {
 /**
  * Library for performing mathematical operations on numbers exceeding 2^1024.
  */
-declare interface AlyaNum extends BaseAlyaNum {
+interface AlyaNum extends BaseAlyaNum {
     /** macro for AlyaNum + AlyaNum */
     add(number: Number): AlyaNum;
     /** macro for AlyaNum - AlyaNum */
@@ -457,4 +457,4 @@ interface AlyaNumConstructor {
 
 declare const AlyaNum: AlyaNumConstructor;
 
-export = AlyaNum;
+export default AlyaNum;
