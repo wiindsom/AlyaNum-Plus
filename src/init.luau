@@ -1009,7 +1009,7 @@ end
 
 function serikaNumToSuffix(mantissa: number, exponent: number): string?
     if exponent < 3 then
-        return serikaNumEnforceDP(mantissa, exponent % 3)
+        return serikaNumEnforceDP(mantissa, exponent)
     end
 	local suffix = exponent > 3002 and getTier2Suffix(exponent) or getTier1Suffix(exponent, true)
 	return suffix and serikaNumEnforceDP(mantissa, exponent % 3) .. suffix
@@ -1105,7 +1105,7 @@ function toString(self: AlyaNum): string
 		return "0"
 	elseif self.sign == -1 then
 		return "-" .. toString(abs(self))
-	elseif lessThan(abs(self), ONE) then
+	elseif lessThan(abs(self), MAX_FRACTIONAL) then
 		return "1 / " .. toSuffix(div(ONE, self))
 
 	elseif lessThan(self, MAX_SUFFIX) and DEFAULT_ABBREVIATION == "suffix" then
