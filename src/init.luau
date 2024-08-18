@@ -942,7 +942,7 @@ function getTier1Suffix(exponent: number, hasBeginning: boolean?): string?
 		return nil
 	else
 		local suffix = "";
-		if exponent >= 3 and exponent < math.huge then
+		if exponent < math.huge then
 			exponent = math.floor(exponent / 3) - 1
 			if hasBeginning == true and exponent < 3 then
 				suffix = suffixes.beginning[exponent + 1]
@@ -1008,6 +1008,9 @@ function getTier2Suffix(exponent: number): string?
 end
 
 function serikaNumToSuffix(mantissa: number, exponent: number): string?
+    if exponent < 3 then
+        return serikaNumEnforceDP(mantissa, exponent % 3)
+    end
 	local suffix = exponent > 3002 and getTier2Suffix(exponent) or getTier1Suffix(exponent, true)
 	return suffix and serikaNumEnforceDP(mantissa, exponent % 3) .. suffix
 end
