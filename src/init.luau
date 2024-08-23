@@ -8,6 +8,7 @@ local FLOAT64_LIMIT = 1.797693015e308
 local LOG10_FLOAT64_LIMIT = math.log10(FLOAT64_LIMIT)
 local FLOAT64_SAFE_LIMIT = math.pow(2, 53) - 1
 local LOG10_FLOAT64_SAFE_LIMIT = math.log10(FLOAT64_SAFE_LIMIT)
+local HUGE = math.huge
 
 local suffixes = {
 	beginning = { "K", "M", "B" },
@@ -110,6 +111,11 @@ end
 
 function AlyaNum.new(number: AlyaNum): AlyaNum
 	if type(number) == "number" then
+        if number == HUGE then
+            error("cannot parse math.huge")
+            -- dont use AlyaNum.new for numbers larger than 10^308;
+            -- either split it into two smaller numbers e.g. AlyaNum.new(10):pow(900) or use AlyaNum.fromScientific
+        end
 		return fix({ sign = math.sign(number), multiplicand = math.abs(number), exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 })
 	end
 	return setmetatable(number :: BaseAlyaNum, AlyaNum)
@@ -156,7 +162,7 @@ function add(self: AlyaNum, number: AlyaNum): AlyaNum
 	if maxNum.exponent == 0 then -- no need for fancy calculations just add them lol
 		return fix({sign = 1, multiplicand = minMultSigned + maxMultSigned, exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 	end
-		
+
 	if maxNum.heptate ~= 0 or maxNum.hexate ~= 0 or maxNum.pentate ~= 0 or maxNum.tetrate ~= 0 or maxNum.exponent > 1 then -- number too big to matter
 		return maxNum
 	elseif minNum.exponent == 0 then -- maxNum exponent is guaranteed to be 1
@@ -166,10 +172,10 @@ function add(self: AlyaNum, number: AlyaNum): AlyaNum
 	elseif math.abs(maxMult - minMult) > LOG10_FLOAT64_SAFE_LIMIT then -- minNum and maxNum exponent guaranteed to be 1
 		return maxNum
 	end
-	
+
 	if maxNum.exponent == 1 then
 		local adjustedMinMult = minNum.exponent == 0 and math.log10(minMult) or minMult
-		
+
 		-- wow! good code!
 		-- yeah this was the simplest and most optimized way i could think of for handling negatives
 		-- 10^(x+log(10^(y-x)+1)) = 10^x+10^y
@@ -211,7 +217,7 @@ function mul(self: AlyaNum, number: AlyaNum): AlyaNum
 	if moreThan(abs(maxNum), MAX_MUL) then
 		return maxNum -- just dont bother
 	end
-	
+
 	if self.exponent < 2 and number.exponent < 2 then
 		local reverted = (self.exponent == 1 and math.pow(10, self.multiplicand) or self.multiplicand) * (number.exponent == 1 and math.pow(10, number.multiplicand) or number.multiplicand)
 		if reverted < FLOAT64_LIMIT then
@@ -904,7 +910,7 @@ end
 
 function toNumber(self: AlyaNum): number
 	if self.exponent >= 2 or (self.exponent == 1 and self.multiplicand > LOG10_FLOAT64_LIMIT) then
-		return math.huge * self.sign
+		return HUGE * self.sign
 	end
 	return self.exponent == 1 and math.pow(10, self.multiplicand) * self.sign or self.multiplicand * self.sign
 end
@@ -923,7 +929,7 @@ function toSerika(self: AlyaNum): (number, number)
 		mantissa = math.pow(10, (exp - math.floor(exp))) * self.sign
 		exponent = math.floor(exp)
 	else
-		return 10, math.huge
+		return 10, HUGE
 	end
 	return mantissa, exponent
 end
@@ -942,7 +948,7 @@ function getTier1Suffix(exponent: number, hasBeginning: boolean?): string?
 		return nil
 	else
 		local suffix = "";
-		if exponent < math.huge then
+		if exponent < HUGE then
 			exponent = math.floor(exponent / 3) - 1
 			if hasBeginning == true and exponent < 3 then
 				suffix = suffixes.beginning[exponent + 1]
@@ -996,10 +1002,10 @@ function getTier2Suffix(exponent: number): string?
 				suffix ..= part1
 			end
 			if i ~= 0 then
-                local part2 = suffixes.mult[i]
-                if part2 ~= nil then
-                    suffix ..= part2
-                end
+				local part2 = suffixes.mult[i]
+				if part2 ~= nil then
+					suffix ..= part2
+				end
 			end
 			exponent = math.fmod(exponent, powed)
 		end
@@ -1008,9 +1014,9 @@ function getTier2Suffix(exponent: number): string?
 end
 
 function serikaNumToSuffix(mantissa: number, exponent: number): string?
-    if exponent < 3 then
-        return serikaNumEnforceDP(mantissa, exponent)
-    end
+	if exponent < 3 then
+		return serikaNumEnforceDP(mantissa, exponent)
+	end
 	local suffix = exponent > 3002 and getTier2Suffix(exponent) or getTier1Suffix(exponent, true)
 	return suffix and serikaNumEnforceDP(mantissa, exponent % 3) .. suffix
 end
@@ -1129,6 +1135,11 @@ function AlyaNum.toBaseAlya(self: AlyaNum): BaseAlyaNum
 	return setmetatable(self, nil) :: BaseAlyaNum
 end
 
+function AlyaNum.fromScientific(str: string): AlyaNum
+	local split = string.split(str, "e")
+	return mul(AlyaNum.new(tonumber(split[1])), pow10(AlyaNum.new(tonumber(split[2]))))
+end
+
 function AlyaNum.changeSuffixes(newSuffixes: typeof(suffixes))
 	suffixes = newSuffixes
 end
@@ -1183,31 +1194,31 @@ AlyaNum.compare = function(self: AlyaNum, number: Number)
 	return compare(self, AlyaNum.new(number))
 end
 AlyaNum.abs = function(self: AlyaNum)
-    return abs(AlyaNum.new(self))
+	return abs(AlyaNum.new(self))
 end
 AlyaNum.log10 = function(self: AlyaNum)
-    return log10(AlyaNum.new(self))
+	return log10(AlyaNum.new(self))
 end
 AlyaNum.log = function(self: AlyaNum, number: Number)
 	return log(self, AlyaNum.new(number))
 end
 AlyaNum.floor = function(self: AlyaNum)
-    return floor(AlyaNum.new(self))
+	return floor(AlyaNum.new(self))
 end
 AlyaNum.round = function(self: AlyaNum)
-    return round(AlyaNum.new(self))
+	return round(AlyaNum.new(self))
 end
 AlyaNum.ceil = function(self: AlyaNum)
-    return ceil(AlyaNum.new(self))
+	return ceil(AlyaNum.new(self))
 end
 AlyaNum.isInteger = function(self: AlyaNum)
-    return isInteger(AlyaNum.new(self))
+	return isInteger(AlyaNum.new(self))
 end
 AlyaNum.reciprocal = function(self: AlyaNum)
-    return reciprocal(AlyaNum.new(self))
+	return reciprocal(AlyaNum.new(self))
 end
 AlyaNum.lambertw = function(self: AlyaNum)
-    return lambertw(AlyaNum.new(self))
+	return lambertw(AlyaNum.new(self))
 end
 AlyaNum.slog = function(self: AlyaNum, number: Number)
 	return slog(self, AlyaNum.new(number))
@@ -1222,7 +1233,7 @@ AlyaNum.hext = function(self: AlyaNum, number: Number)
 	return hexate(self, AlyaNum.new(number))
 end
 AlyaNum.unary = function(self: AlyaNum)
-    return unary(AlyaNum.new(self))
+	return unary(AlyaNum.new(self))
 end
 AlyaNum.min = function(self: AlyaNum, number: Number)
 	return min(self, AlyaNum.new(number))
@@ -1237,25 +1248,25 @@ AlyaNum.toString = function(self: Number)
 	return toString(AlyaNum.new(self))
 end
 AlyaNum.toSerika = function(self: Number)
-    return toSerika(AlyaNum.new(self))
+	return toSerika(AlyaNum.new(self))
 end
 AlyaNum.toNumber = function(self: Number)
-    return toNumber(AlyaNum.new(self))
+	return toNumber(AlyaNum.new(self))
 end
 AlyaNum.toSuffix = function(self: Number)
-    return toSuffix(AlyaNum.new(self))
+	return toSuffix(AlyaNum.new(self))
 end
 AlyaNum.toScientific = function(self: Number)
-    return toScientific(AlyaNum.new(self))
+	return toScientific(AlyaNum.new(self))
 end
 AlyaNum.toEChain = function(self: Number)
-    return toEChain(AlyaNum.new(self))
+	return toEChain(AlyaNum.new(self))
 end
 AlyaNum.toEnt = function(self: Number)
-    return toEnt(AlyaNum.new(self))
+	return toEnt(AlyaNum.new(self))
 end
 AlyaNum.toHyperE = function(self: Number)
-    return toHyperE(AlyaNum.new(self))
+	return toHyperE(AlyaNum.new(self))
 end
 AlyaNum.eq = AlyaNum.equals
 AlyaNum.lt = AlyaNum.lessThan

@@ -386,15 +386,15 @@ interface AlyaNumConstructor {
      */
     toHyperE(number: Number): string;
 
-    /**
-     * Converts the AlyaNum object into a single primitive number that represents the magnitude of the number.
-     * This method should only be used for leaderboards and other things that do not require the
-     * specific number itself as the resulting single numbers are highly imprecise.
-     * 
-     * @param number AlyaNum object
-     * @returns Resulting single number
-     */
-    toSingle: (number: Number) => number;
+    // /**
+    //  * Converts the AlyaNum object into a single primitive number that represents the magnitude of the number.
+    //  * This method should only be used for leaderboards and other things that do not require the
+    //  * specific number itself as the resulting single numbers are highly imprecise.
+    //  * 
+    //  * @param number AlyaNum object
+    //  * @returns Resulting single number
+    //  */
+    // toSingle: (number: Number) => number;
     // /**
     //  * Converts the single primitive number back into an AlyaNum object.
     //  * This AlyaNum object is usually much more imprecise than it previous was before conversion into
@@ -425,6 +425,20 @@ interface AlyaNumConstructor {
      */
     minmax: (number1: AlyaNum, number2: Number) => LuaTuple<[AlyaNum, AlyaNum]>;
 
+
+    /**
+     * Converts strings formatted as *raw* scientific notation into an AlyaNum.
+     * This function does **NOT** accept suffixed scientific notations that are
+     * produced from {@link toScientific} and should only be used as a utility
+     * function to conveniently get numbers larger than 10^308.
+     * @example
+     * const number1 = AlyaNum.fromScientific("2.4e5200") // 2.4e5.2K
+     * const number2 = new AlyaNum(2.4).mul(new AlyaNum(10).pow(5200)) // 2.4e5.2K
+     * 
+     * @param str Scientific notated string to convert into AlyaNum
+     * @returns Resulting AlyaNum
+     */
+    fromScientific: (str: string) => AlyaNum;
 
     /**
      * Change the suffixes to be shown when using the method {@link toSuffix}.
