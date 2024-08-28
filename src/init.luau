@@ -111,11 +111,11 @@ end
 
 function AlyaNum.new(number: AlyaNum): AlyaNum
 	if type(number) == "number" then
-        if number == HUGE then
-            error("cannot parse math.huge")
-            -- dont use AlyaNum.new for numbers larger than 10^308;
-            -- either split it into two smaller numbers e.g. AlyaNum.new(10):pow(900) or use AlyaNum.fromScientific
-        end
+		if number == HUGE then
+			error("cannot parse math.huge")
+			-- dont use AlyaNum.new for numbers larger than 10^308;
+			-- either split it into two smaller numbers e.g. AlyaNum.new(10):pow(900) or use AlyaNum.fromScientific
+		end
 		return fix({ sign = math.sign(number), multiplicand = math.abs(number), exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 })
 	end
 	return setmetatable(number :: BaseAlyaNum, AlyaNum)
@@ -1131,8 +1131,193 @@ function toString(self: AlyaNum): string
 	end
 end
 
+function AlyaNum.fromString(str): AlyaNum
+	if str == "[0]" then
+		return ZERO
+	end
+	if (string.find(str, 'e') or string.find(str, 'E')) and not string.find(str,"%[") then
+		local subs = string.split(str, 'e')
+		-- Fix problem with tetrate
+		if subs[1] == "" then
+			table.insert(subs, 1, "1")
+			if subs[2] == "" then
+				table.remove(subs, 2)
+			end
+		end
+		if #subs == 2 then
+			-- its scientific yk
+			local n = false
+
+			if subs[1]:find("-") then
+				subs[1] = math.abs(subs[1])
+				n = true
+			end
+			local first = subs[2]+math.log10(subs[1])
+			if n then 
+				first = -first
+			end
+			local second = 1
+			local sign = math.sign(first)
+			first = math.abs(first)
+			return fix({ sign = sign, multiplicand = first, exponent = second, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 })
+		else
+			-- its a e chain!
+			local second = #subs-1
+			local first = subs[#subs]
+			local sign = 1
+			if subs[1] == '-' then
+				sign = -1
+			end
+			return fix({ sign = sign, multiplicand = tonumber(first), exponent = second, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 })
+		end
+	end
+	if string.find(str, ',') or string.find(str,"%[") then
+		str = game.HttpService:JSONDecode(str)
+		str = {math.sign(str[1] or 1), str}
+		str[2][1] = math.abs(str[2][1] or 0)
+		return fix(AlyaNum.fromOmega(str))
+	else
+		return AlyaNum.new(tonumber(str))
+	end
+end
+
 function AlyaNum.toBaseAlya(self: AlyaNum): BaseAlyaNum
 	return setmetatable(self, nil) :: BaseAlyaNum
+end
+
+-- completely stolen from omeganum
+function AlyaNum.lbencode(self: AlyaNum): number
+	if self.sign == 0 then
+		return 0
+		-- For maximum performance, you do not need to encode 0.
+	end
+	
+	local sign = self.sign
+	if self.heptate > 0 then
+		-- good until 916 arrays
+		local cnum = 1.2e17
+		cnum += math.log10((self.heptate + (math.log10(self.hexate + 1) / 16) + 1)) * 6.26775e14
+		return sign * cnum
+	elseif self.hexate > 0 then
+		-- mode 11: I Do Not Konw
+		local cnum = 1.1e17
+		cnum += math.log10((self.hexate + (math.log10(self.pentate + 1) / 16) + 1)) * 6.26775e14
+		return sign * cnum
+	elseif self.pentate > 0 then
+		-- mode 10: Big Number Territory
+		local cnum = 1e17
+		cnum += math.log10((self.pentate + (math.log10(self.tetrate + 1) / 16) + 1)) * 6.26775e14
+		return sign * cnum
+	elseif self.tetrate > 0 then
+		if self.tetrate < 9999 then
+			-- mode 8: Pentation Empire
+			local cnum = 8e16
+			cnum += math.log10((self.exponent + (math.log10(self.multiplicand) / 16) + 1)) * 6.26775e8
+			cnum += self.tetrate * 1e10
+			return sign * cnum
+		elseif self.tetrate == 2 then
+			-- mode 7: Post-EternityNum
+			local cnum = 7e16
+			cnum += math.log10((self.exponent + (math.log10(self.multiplicand) / 16) + 1)) * 6.26775e14
+			return sign * cnum
+		elseif self.tetrate == 1 then
+			-- mode 6: Beyond EternityNum
+			local cnum = 6e16
+			cnum += math.log10((self.exponent + (math.log10(self.multiplicand) / 16) + 1)) * 6.26775e14
+			return sign * cnum
+		end
+		-- mode 9: Ultra Pentation
+		local cnum = 9e16
+		cnum += math.log10((self.tetrate + (math.log10(self.exponent + 1) / 16) + 1)) * 6.26775e14
+		return sign * cnum
+	elseif self.exponent > 0 then
+		if self.exponent <= 9999 then
+			-- mode 4: Native Big EternityNum Numbers
+			local cnum = 4e16
+			cnum += math.log10((self.multiplicand + 1)) * 6.26775e8
+			cnum += self.exponent * 1e10
+			return sign * cnum
+		elseif self.exponent < 4 then
+			-- mode 1: Native BigNum
+			-- mode 2: Native Post-BigNum
+			-- mode 3: Native EternityNum
+			return sign * (math.floor(math.log10((self.multiplicand + 1)) * 6.26775e14) + self.exponent * 1e16)
+		end
+		-- mode 5: Native Extreme EternityNum Numbers
+		local cnum = 5e16
+		cnum += math.log10((self.exponent + (math.log10(self.multiplicand) / 16) + 1)) * 6.26775e14
+		return sign * cnum
+	elseif self.multiplicand > 0 then
+		-- mode 0: Native Float
+		return sign * math.floor(math.log10((self.multiplicand + 1)) * 6.26775e14)
+	end
+end
+
+function AlyaNum.lbdecode(int: number): AlyaNum
+	if int == 0 then
+		return ZERO
+	end
+	local sign = math.sign(int)
+	int = math.abs(int)
+	
+	local mode = math.floor(int / 1e16)
+	if mode >= 3 then
+		int -= 1
+	end
+	if mode == 0 then
+		return fix({sign = sign, multiplicand = 10^(int / 6.26775e14) - 1, exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
+	elseif mode < 4 then
+		return fix({sign = sign, multiplicand = 10^(math.fmod(int, 1e16) / 6.26775e14) - 1, exponent = mode, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
+	elseif mode == 4 then
+		local remainder = math.fmod(int, 1e10)
+		return fix({sign = sign, multiplicand = 10^(remainder / 6.26775e8) - 1, exponent =  math.floor((int - 4e16) / 1e10), tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
+	elseif mode == 5 then
+		local remainder = math.fmod(int, 1e16)
+		local arrows = 10^(remainder / 6.26775e14) - 1
+		local arg1 = 10^(math.fmod(arrows, 1)*16)
+		return fix({sign = sign, multiplicand = arg1, exponent = math.floor(arrows), tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
+	elseif mode == 6 then
+		local remainder = math.fmod(int, 1e16)
+		local arrows = 10^(remainder / 6.26775e14) - 1
+		local arg1 = 10^(math.fmod(arrows, 1)*16)
+		return fix({sign = sign, multiplicand = arg1, exponent = math.floor(arrows), tetrate = 1, pentate = 0, hexate = 0, heptate = 0})
+	elseif mode == 7 then
+		local remainder = math.fmod(int, 1e16)
+		local arrows = 10^(remainder / 6.26775e14) - 1
+		local arg1 = 10^(math.fmod(arrows, 1)*16)
+		return fix({sign = sign, multiplicand = arg1, exponent = math.floor(arrows), tetrate = 2, pentate = 0, hexate = 0, heptate = 0})
+	elseif mode == 8 then
+		local arg3 = math.floor((int-8e16) / 1e10)
+		local remainder = math.fmod(int, 1e10) * 1e6
+		local arrows = 10^(remainder / 6.26775e14) - 1
+		local arg1 = 10^(math.fmod(arrows, 1)*16)
+		return fix({sign = sign, multiplicand = arg1, exponent = math.floor(arrows), tetrate = math.floor(arg3), pentate = 0, hexate = 0, heptate = 0})
+	elseif mode == 9 then
+		local remainder = math.fmod(int, 1e16)
+		local arrows = 10^(remainder / 6.26775e14) - 1
+		local arg1 = 10^(math.fmod(arrows, 1)*16)
+		return fix({sign = sign, multiplicand = 1, exponent = math.floor(arg1), tetrate = math.floor(arrows), pentate = 0, hexate = 0, heptate = 0})
+	elseif mode == 10 then
+		local remainder = math.fmod(int, 1e16)
+		local arrows = 10^(remainder / 6.26775e14) - 1
+		local arg1 = 10^(math.fmod(arrows, 1)*16)
+		return fix({sign = sign, multiplicand = 1, exponent = 0, tetrate = math.floor(arg1), pentate = math.floor(arrows), hexate = 0, heptate = 0})
+	else
+		local zeros = mode - 10
+		local remainder = math.fmod(int, 1e16)
+		local arrows = 10^(remainder / 6.26775e14) - 1
+		local arg1 = FLOAT64_SAFE_LIMIT ^ (math.fmod(arrows, 1))
+		local xd = {1, 0}
+		for i=1,zeros do
+			table.insert(xd, 0)
+		end
+		table.insert(xd, math.floor(arg1))
+		table.insert(xd, math.floor(arrows))
+		if xd[zeros + 4] == 0 then
+			table.remove(xd)
+		end
+		return AlyaNum.fromOmega({sign, xd}) -- lol
+	end
 end
 
 function AlyaNum.fromScientific(str: string): AlyaNum
@@ -1276,6 +1461,8 @@ AlyaNum.me = AlyaNum.moreEquals
 AlyaNum.unm = AlyaNum.unary
 AlyaNum.recip = AlyaNum.reciprocal
 AlyaNum.revert = toNumber
+AlyaNum.toSingle = AlyaNum.lbencode
+AlyaNum.fromSingle = AlyaNum.lbdecode
 AlyaNum.__add = AlyaNum.add
 AlyaNum.__sub = AlyaNum.sub
 AlyaNum.__mul = AlyaNum.mul
@@ -1295,6 +1482,8 @@ end
 AlyaNum.GOOGOL = AlyaNum.new(10):pow(100)
 AlyaNum.GOOGOLPLEX = AlyaNum.new(10):pow(AlyaNum.GOOGOL)
 AlyaNum.GOOGOLPLEXPLEX = AlyaNum.new(10):pow(AlyaNum.GOOGOLPLEX)
+AlyaNum.TRITRI = AlyaNum.new(3):pent(3)
+AlyaNum.TRITET = AlyaNum.new(4):hext(4)
 AlyaNum.GRAHAM1 = AlyaNum.new(3):hext(3)
 
 export type AlyaNum = typeof(setmetatable({} :: BaseAlyaNum, AlyaNum))

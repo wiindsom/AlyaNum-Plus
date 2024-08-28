@@ -222,14 +222,14 @@ interface AlyaNum extends BaseAlyaNum {
      */
     toHyperE(): string;
 
-    // /**
-    //  * Converts the AlyaNum into a single primitive number that represents the magnitude of the number.
-    //  * This method should only be used for leaderboards and other things that do not require the
-    //  * specific number itself as the resulting single numbers are highly inaccurate.
-    //  *
-    //  * @returns Resulting single number
-    //  */
-    // toSingle(): number;
+    /**
+     * Converts the AlyaNum into a single primitive number that represents the magnitude of the number.
+     * This method should only be used for leaderboards and other things that do not require the
+     * specific number itself as the resulting single numbers are highly inaccurate.
+     *
+     * @returns Resulting single number
+     */
+    toSingle(): number;
 }
 
 /**
@@ -238,13 +238,17 @@ interface AlyaNum extends BaseAlyaNum {
  */
 interface AlyaNumConstructor {
     /** Constant for `10^100`. */
-    GOOGOL: AlyaNum;
+    readonly GOOGOL: AlyaNum;
     /** Cnstant for `10^(10^100)`. */
-    GOOGOLPLEX: AlyaNum;
+    readonly GOOGOLPLEX: AlyaNum;
     /** Constant for `10^(10^(10^100))`. */
-    GOOGOLPLEXPLEX: AlyaNum;
+    readonly GOOGOLPLEXPLEX: AlyaNum;
+    /** Constant for 3^^^3. (^^^ = pentation) */
+    readonly TRITRI: AlyaNum;
+    /** Constant for 4^^^^4. (^^^^ = hexation) */
+    readonly TRITET: AlyaNum;
     /** Constant for 3^^^^3. (^^^^ = hexation) */
-    GRAHAM1: AlyaNum;
+    readonly GRAHAM1: AlyaNum;
 
     /**
      * Create a new AlyaNum object from a primitive number.
@@ -269,6 +273,19 @@ interface AlyaNumConstructor {
      * @returns Resulting AlyaNum object
      */
     fromOmega: (onum: [number, number[]]) => AlyaNum;
+
+    /**
+     * Converts a formatted string into an AlyaNum.
+     * Does not handle suffixed strings e.g. 5.5UCe.
+     * 
+     * @example
+     * fromString("5519529259")
+     * fromString("5.5e125")
+     * 
+     * @param str String to parse
+     * @returns Resulting AlyaNum
+     */
+    fromString: (str: string) => AlyaNum;
 
 
     /**
@@ -386,25 +403,25 @@ interface AlyaNumConstructor {
      */
     toHyperE(number: Number): string;
 
-    // /**
-    //  * Converts the AlyaNum object into a single primitive number that represents the magnitude of the number.
-    //  * This method should only be used for leaderboards and other things that do not require the
-    //  * specific number itself as the resulting single numbers are highly imprecise.
-    //  * 
-    //  * @param number AlyaNum object
-    //  * @returns Resulting single number
-    //  */
-    // toSingle: (number: Number) => number;
-    // /**
-    //  * Converts the single primitive number back into an AlyaNum object.
-    //  * This AlyaNum object is usually much more imprecise than it previous was before conversion into
-    //  * a single primitive number.
-    //  * Use this method to display numbers stored in leaderboard datastores.
-    //  * 
-    //  * @param single Single primitive number
-    //  * @returns Resulting AlyaNum object
-    //  */
-    // fromSingle: (single: number) => AlyaNum;
+    /**
+     * Converts the AlyaNum object into a single primitive number that represents the magnitude of the number.
+     * This method should only be used for leaderboards and other things that do not require the
+     * specific number itself as the resulting single numbers are highly imprecise.
+     * 
+     * @param number AlyaNum object
+     * @returns Resulting single number
+     */
+    toSingle: (number: Number) => number;
+    /**
+     * Converts the single primitive number back into an AlyaNum object.
+     * This AlyaNum object is usually much more imprecise than it previous was before conversion into
+     * a single primitive number.
+     * Use this method to display numbers stored in leaderboard datastores.
+     * 
+     * @param single Single primitive number
+     * @returns Resulting AlyaNum object
+     */
+    fromSingle: (single: number) => AlyaNum;
 
     /**
      * Returns the maximum value of two AlyaNum objects.
