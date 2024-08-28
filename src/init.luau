@@ -143,8 +143,8 @@ local MAX_POW = AlyaNum.new({sign = 1, multiplicand = 1, exponent = FLOAT64_SAFE
 local MAX_TETRATE = AlyaNum.new({sign = 1, multiplicand = 10000000000, exponent = 8, tetrate = FLOAT64_SAFE_LIMIT, pentate = 0, hexate = 0, heptate = 0})
 local MAX_FRACTIONAL = AlyaNum.new(0.000000001)
 local MAX_SUFFIX = AlyaNum.new({sign = 1, multiplicand = 3000000, exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
-local MAX_SCIENTIFIC = AlyaNum.new({sign = 1, multiplicand = 308, exponent = 2, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
-local MAX_E_CHAIN = AlyaNum.new({sign = 1, multiplicand = 1, exponent = 8, tetrate = 1, pentate = 0, hexate = 0, heptate = 0})
+local MAX_SCIENTIFIC = AlyaNum.new({sign = 1, multiplicand = 300008, exponent = 4, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
+local MAX_E_CHAIN = AlyaNum.new({sign = 1, multiplicand = 10000000000, exponent = 8, tetrate = 1, pentate = 0, hexate = 0, heptate = 0})
 local MAX_ENT = AlyaNum.new({sign = 1, multiplicand = 306, exponent = 1, tetrate = 2, pentate = 0, hexate = 0, heptate = 0})
 
 
@@ -554,7 +554,7 @@ function tetrate(self: AlyaNum, number: AlyaNum): AlyaNum
 	local result = pow(self, AlyaNum.new(revertedTetrate - floored))
 	local check: AlyaNum
 	local count = 0
-	for i = 1, 100 do -- maximum tetrate is 100
+	for i = 1, 100 do -- maximum times to perform algorithm is 100, should be enough for any number
 		if not (floored ~= 0 and lessThan(result, MAX_ADD)) then
 			break
 		end
@@ -1058,7 +1058,7 @@ function toScientific(self: AlyaNum): string
 end
 
 function toEChain(self: AlyaNum): string
-	if self.tetrate > 0 then
+	if self.tetrate > 0 or self.exponent > 10 then
 		return toEnt(self)
 	end
 	return string.rep("e", self.exponent) .. tostring(math.floor(self.multiplicand * DP_OFFSET) / DP_OFFSET)
@@ -1072,11 +1072,11 @@ function toEnt(self: AlyaNum): string
 		end
 		multiplicand = math.pow(10, multiplicand)
 	end
-	local part = "E(" .. self.exponent .. ")"
+	local part = "E(" .. numberToSuffix(self.exponent) .. ")"
 	if self.sign == -1 then
 		part = "-" .. part
 	end
-	return part .. math.floor(self.multiplicand * DP_OFFSET) / DP_OFFSET
+	return part .. numberToSuffix(self.multiplicand)
 end
 
 function toHyperE(self: AlyaNum): string
@@ -1131,6 +1131,61 @@ function toString(self: AlyaNum): string
 	end
 end
 
+function getSuffixExponent(suffix: string): number?
+	local exponent = 0
+	for i, v in suffixes.third do
+		local startIndex, endIndex = string.find(suffix, v)
+		if startIndex ~= nil then
+			exponent += i * 300
+			suffix = string.sub(suffix, 1, startIndex - 1)
+			break
+		end
+	end
+	local secondPresent = false
+	for i, v in suffixes.second do
+		local startIndex, endIndex = string.find(suffix, v)
+		if startIndex ~= nil then
+			exponent += i * 30
+			suffix = string.sub(suffix, 1, startIndex - 1)
+			secondPresent = true
+			break
+		end
+	end
+	for i, v in suffixes.first do
+		local startIndex, endIndex = string.find(suffix, v)
+		if startIndex ~= nil then
+			exponent += i * 3
+			suffix = string.sub(suffix, 1, startIndex - 1)
+			break
+		end
+	end
+	for i, v in suffixes.beginning do
+		local startIndex, endIndex = string.find(suffix, v)
+		if startIndex ~= nil then
+			exponent += i * 3 - 3
+			suffix = string.sub(suffix, 1, startIndex - 1)
+			break
+		end
+	end
+
+	return exponent + 3
+end
+
+function fromSuffix(str: string): AlyaNum?
+	local suffix = str:match("%a+")
+	if suffix == nil then
+		return nil
+	end
+	local mantissa = tonumber(string.sub(str, 1, string.find(str, suffix) - 1))
+
+	local exponent = getSuffixExponent(suffix)
+	if mantissa ~= nil and exponent > 0 then
+		return AlyaNum.fromOnoe({mantissa = mantissa, exponent = exponent})
+	else
+		return nil
+	end
+end
+
 function AlyaNum.fromString(str): AlyaNum
 	if str == "[0]" then
 		return ZERO
@@ -1148,18 +1203,21 @@ function AlyaNum.fromString(str): AlyaNum
 			-- its scientific yk
 			local n = false
 
-			if subs[1]:find("-") then
-				subs[1] = math.abs(subs[1])
-				n = true
+			local parsed = tonumber(subs[1])
+			if parsed ~= nil then
+				if subs[1]:find("-") then
+					parsed = math.abs(parsed)
+					n = true
+				end
+				local first = subs[2] + math.log10(parsed)
+				if n then 
+					first = -first
+				end
+				local second = 1
+				local sign = math.sign(first)
+				first = math.abs(first)
+				return fix({ sign = sign, multiplicand = first, exponent = second, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 })
 			end
-			local first = subs[2]+math.log10(subs[1])
-			if n then 
-				first = -first
-			end
-			local second = 1
-			local sign = math.sign(first)
-			first = math.abs(first)
-			return fix({ sign = sign, multiplicand = first, exponent = second, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 })
 		else
 			-- its a e chain!
 			local second = #subs-1
@@ -1177,6 +1235,10 @@ function AlyaNum.fromString(str): AlyaNum
 		str[2][1] = math.abs(str[2][1] or 0)
 		return fix(AlyaNum.fromOmega(str))
 	else
+		local fromSuff = fromSuffix(str)
+		if (fromSuff ~= nil) then
+			return fromSuff
+		end
 		return AlyaNum.new(tonumber(str))
 	end
 end
@@ -1479,12 +1541,12 @@ AlyaNum.__concat = function(self: AlyaNum, value: any): AlyaNum
 end
 
 -- fun little things
-AlyaNum.GOOGOL = AlyaNum.new(10):pow(100)
+AlyaNum.GOOGOL = AlyaNum.new(10e100)
 AlyaNum.GOOGOLPLEX = AlyaNum.new(10):pow(AlyaNum.GOOGOL)
 AlyaNum.GOOGOLPLEXPLEX = AlyaNum.new(10):pow(AlyaNum.GOOGOLPLEX)
-AlyaNum.TRITRI = AlyaNum.new(3):pent(3)
-AlyaNum.TRITET = AlyaNum.new(4):hext(4)
-AlyaNum.GRAHAM1 = AlyaNum.new(3):hext(3)
+AlyaNum.TRITRI = AlyaNum.new({sign = 1, multiplicand = 3638334640023.778, exponent = 7625597484984, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
+AlyaNum.TRITET = AlyaNum.new({sign = 1, multiplicand = 153.906997547968, exponent = 2, tetrate = 2, pentate = 2, hexate = 0, heptate = 0})
+AlyaNum.GRAHAM1 = AlyaNum.new({sign = 1, multiplicand = 3638334640023.778, exponent = 7625597484984, tetrate = 0, pentate = 1, hexate = 0, heptate = 0})
 
 export type AlyaNum = typeof(setmetatable({} :: BaseAlyaNum, AlyaNum))
 

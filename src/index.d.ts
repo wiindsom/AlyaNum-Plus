@@ -276,11 +276,13 @@ interface AlyaNumConstructor {
 
     /**
      * Converts a formatted string into an AlyaNum.
-     * Does not handle suffixed strings e.g. 5.5UCe.
+     * Does not handle tier 2 suffixes i.e. suffixes above `Noce`.
      * 
      * @example
-     * fromString("5519529259")
-     * fromString("5.5e125")
+     * fromString("2852852858") // Result: AlyaNum 2.85B
+     * fromString("5e511") // Result: AlyaNum 50NoSxgCe
+     * fromString("eeee5") // Result: AlyaNum eee100000
+     * fromString("26UDe") // Result: AlyaNum 26UDe
      * 
      * @param str String to parse
      * @returns Resulting AlyaNum
