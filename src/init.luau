@@ -1236,6 +1236,9 @@ function AlyaNum.fromString(str): AlyaNum
 			local n = false
 
 			local parsed = tonumber(subs[1])
+			if parsed == 0 then
+				return ZERO
+			end
 			if parsed ~= nil then
 				if subs[1]:find("-") then
 					parsed = math.abs(parsed)
@@ -1246,6 +1249,10 @@ function AlyaNum.fromString(str): AlyaNum
 					first = -first
 				end
 				local second = 1
+				if first == 0 then
+					first = 1
+					second = 0
+				end
 				local sign = math.sign(first)
 				first = math.abs(first)
 				return fix({ sign = sign, multiplicand = first, exponent = second, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 })
