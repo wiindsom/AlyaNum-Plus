@@ -1245,13 +1245,13 @@ function AlyaNum.fromString(str): AlyaNum
 					n = true
 				end
 				local first = subs[2] + math.log10(parsed)
-				if n then 
-					first = -first
-				end
 				local second = 1
 				if first == 0 then
 					first = 1
 					second = 0
+				end
+				if n then 
+					first = -first
 				end
 				local sign = math.sign(first)
 				first = math.abs(first)
