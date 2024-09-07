@@ -37,11 +37,15 @@ export type Number = BaseAlyaNum | number | AlyaNum
 local AlyaNum = {}
 AlyaNum.__index = AlyaNum
 
-local ZERO = setmetatable({ sign = 0, multiplicand = 0, exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 }, AlyaNum)
-
 function fix(number: BaseAlyaNum): AlyaNum
 	if number.sign == 0 then -- its just 0
-		return ZERO
+		number.multiplicand = 0
+		number.exponent = 0
+		number.tetrate = 0
+		number.pentate = 0
+		number.hexate = 0
+		number.heptate = 0
+		return setmetatable(number, AlyaNum)
 	elseif math.sign(number.multiplicand) == -1 then
 		number.multiplicand = math.abs(number.multiplicand)
 		number.sign = -number.sign
@@ -54,7 +58,8 @@ function fix(number: BaseAlyaNum): AlyaNum
 	if number.exponent == 0 then
 		local total = number.tetrate + number.pentate + number.hexate + number.heptate
 		if number.multiplicand == 0 and total == 0 then -- its just 0
-			return ZERO
+			number.sign = 0
+			return setmetatable(number, AlyaNum)
 		elseif number.multiplicand == 1 and total == 1 then -- case for 1 * 10^^..^^1
 			number.multiplicand = 10
 			number.tetrate = 0
@@ -121,6 +126,7 @@ function AlyaNum.new(number: number | BaseAlyaNum): AlyaNum
 end
 
 -- cached numbers
+local ZERO = AlyaNum.new(0)
 local ONE = AlyaNum.new(1)
 local TWO = AlyaNum.new(2)
 local THREE = AlyaNum.new(3)
