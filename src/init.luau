@@ -37,18 +37,14 @@ export type Number = BaseAlyaNum | number | AlyaNum
 local AlyaNum = {}
 AlyaNum.__index = AlyaNum
 
+local ZERO = setmetatable({ sign = 0, multiplicand = 0, exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 }, AlyaNum)
+
 function fix(number: BaseAlyaNum): AlyaNum
 	if number.sign == 0 then -- its just 0
-		number.multiplicand = 0
-		number.exponent = 0
-		number.tetrate = 0
-		number.pentate = 0
-		number.hexate = 0
-		number.heptate = 0
-		return setmetatable(number, AlyaNum)
+		return ZERO
 	elseif math.sign(number.multiplicand) == -1 then
 		number.multiplicand = math.abs(number.multiplicand)
-		number.sign = -1
+		number.sign = -number.sign
 	end
 	if number.multiplicand >= FLOAT64_SAFE_LIMIT then
 		number.multiplicand = math.log10(number.multiplicand)
@@ -56,7 +52,10 @@ function fix(number: BaseAlyaNum): AlyaNum
 	end
 
 	if number.exponent == 0 then
-		if number.multiplicand == 1 and (number.tetrate + number.pentate + number.hexate + number.heptate == 1) then -- case for 1 * 10^^..^^1
+		local total = number.tetrate + number.pentate + number.hexate + number.heptate
+		if number.multiplicand == 0 and total == 0 then -- its just 0
+			return ZERO
+		elseif number.multiplicand == 1 and total == 1 then -- case for 1 * 10^^..^^1
 			number.multiplicand = 10
 			number.tetrate = 0
 			number.pentate = 0
@@ -122,7 +121,6 @@ function AlyaNum.new(number: number | BaseAlyaNum): AlyaNum
 end
 
 -- cached numbers
-local ZERO = AlyaNum.new(0)
 local ONE = AlyaNum.new(1)
 local TWO = AlyaNum.new(2)
 local THREE = AlyaNum.new(3)
@@ -146,7 +144,6 @@ local MAX_SUFFIX = AlyaNum.new({sign = 1, multiplicand = 3000000, exponent = 1, 
 local MAX_SCIENTIFIC = AlyaNum.new({sign = 1, multiplicand = 300008, exponent = 4, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 local MAX_E_CHAIN = AlyaNum.new({sign = 1, multiplicand = 10000000000, exponent = 8, tetrate = 1, pentate = 0, hexate = 0, heptate = 0})
 local MAX_ENT = AlyaNum.new({sign = 1, multiplicand = 306, exponent = 1, tetrate = 2, pentate = 0, hexate = 0, heptate = 0})
-
 
 function add(self: AlyaNum, number: AlyaNum): AlyaNum
 	if self.sign == 0 then
