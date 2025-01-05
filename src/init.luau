@@ -158,48 +158,46 @@ function add(self: AlyaNum, number: AlyaNum): AlyaNum
 		return self
 	end
 
-	local minNum, maxNum = minmax(self, number)
-	local minSign, maxSign, minMult, maxMult = minNum.sign, maxNum.sign, minNum.multiplicand, maxNum.multiplicand
-	local minMultSigned = minSign * minMult
-	local maxMultSigned = maxSign * maxMult
-	if maxNum.exponent == 0 then -- no need for fancy calculations just add them lol
-		return fix({sign = 1, multiplicand = minMultSigned + maxMultSigned, exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
-	end
+	local minAbsNum, maxAbsNum = absMinmax(self, number)
 
-	if maxNum.heptate ~= 0 or maxNum.hexate ~= 0 or maxNum.pentate ~= 0 or maxNum.tetrate ~= 0 or maxNum.exponent > 1 then -- number too big to matter
-		return maxNum
-	elseif minNum.exponent == 0 then -- maxNum exponent is guaranteed to be 1
-		if math.pow(10, maxMultSigned) - minMultSigned > FLOAT64_SAFE_LIMIT then
-			return maxNum
-		end
-	elseif math.abs(maxMult - minMult) > LOG10_FLOAT64_SAFE_LIMIT then -- minNum and maxNum exponent guaranteed to be 1
-		return maxNum
+	if maxAbsNum.heptate ~= 0 or maxAbsNum.hexate ~= 0 or maxAbsNum.pentate ~= 0 or maxAbsNum.tetrate ~= 0 or maxAbsNum.exponent > 1 then
+		-- number too big to matter
+		return maxAbsNum
 	end
-
-	local adjustedMinMult = minNum.exponent == 0 and math.log10(minMult) or minMult
+	
+	if maxAbsNum.exponent == 0 then
+		-- minAbsNum exponent is 0
+		-- no need for fancy calculations just add them lol
+		return fix({sign = 1, multiplicand = (minAbsNum.sign * minAbsNum.multiplicand) + (maxAbsNum.sign * maxAbsNum.multiplicand), exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
+	end
+	
+	local adjMinMult = minAbsNum.exponent == 0 and math.log10(minAbsNum.multiplicand) or minAbsNum.multiplicand
+	
+	-- both exponents are 1
+	if maxAbsNum.multiplicand - adjMinMult >= LOG10_FLOAT64_LIMIT then
+		return maxAbsNum
+	end
+	
+	
+	local minSign, maxSign, minMult, maxMult = minAbsNum.sign, maxAbsNum.sign, minAbsNum.multiplicand, maxAbsNum.multiplicand
 
 	-- wow! good code!
 	-- yeah this was the simplest and most optimized way i could think of for handling negatives
-	-- 10^(x+log(10^(y-x)+1)) = 10^x+10^y
-	if maxSign == 1 then
-		if minSign == 1 then
-			return fix({sign = 1, 
-				multiplicand = adjustedMinMult + math.log10(math.pow(10, maxMult - adjustedMinMult) + 1), exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
-		else
-			if adjustedMinMult == maxMult then -- x + -x = 0
-				return ZERO
-			elseif adjustedMinMult > maxMult then
-				return fix({sign = -1, 
-					multiplicand = maxMult + math.log10(math.pow(10, adjustedMinMult - maxMult) - 1), exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
-			else
-				return fix({sign = 1, 
-					multiplicand = adjustedMinMult + math.log10(math.pow(10, maxMult - adjustedMinMult) - 1), exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
-			end
-		end
-	else
-		return fix({sign = -1,
-			multiplicand = adjustedMinMult + math.log10(math.pow(10, maxMult - adjustedMinMult) + 1), exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
+	
+	if maxSign == minSign then
+		
+		-- 10^(x+log(10^(y-x)+1)) = 10^x+10^y
+		return fix({sign = maxSign, multiplicand = adjMinMult + math.log10(math.pow(10, maxMult - adjMinMult) + 1), exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 	end
+	
+	if adjMinMult == maxMult then -- x + -x = 0
+		return ZERO
+	end
+	
+	-- maxMult will always be higher than adjMinMult, so the resulting number is signed in maxSign
+	
+	-- 10^(x+log(10^(y-x)-1)) = 10^x-10^y
+	return fix({sign = maxSign, multiplicand = adjMinMult + math.log10(math.pow(10, maxMult - adjMinMult) - 1), exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 end
 
 function mul(self: AlyaNum, number: AlyaNum): AlyaNum
@@ -1295,7 +1293,7 @@ function AlyaNum.lbencode(self: AlyaNum): number
 		return 0
 		-- For maximum performance, you do not need to encode 0.
 	end
-	
+
 	local sign = self.sign
 	if self.heptate > 0 then
 		-- good until 916 arrays
@@ -1363,7 +1361,7 @@ function AlyaNum.lbdecode(int: number): AlyaNum
 	end
 	local sign = math.sign(int)
 	int = math.abs(int)
-	
+
 	local mode = math.floor(int / 1e16)
 	if mode >= 3 then
 		int -= 1
