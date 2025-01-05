@@ -145,6 +145,8 @@ local MAX_ADD = AlyaNum.new({sign = 1, multiplicand = FLOAT64_SAFE_LIMIT, expone
 local MAX_MUL = AlyaNum.new({sign = 1, multiplicand = FLOAT64_SAFE_LIMIT, exponent = 2, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 local MAX_POW = AlyaNum.new({sign = 1, multiplicand = 1, exponent = FLOAT64_SAFE_LIMIT, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 local MAX_TETRATE = AlyaNum.new({sign = 1, multiplicand = 10000000000, exponent = 8, tetrate = FLOAT64_SAFE_LIMIT, pentate = 0, hexate = 0, heptate = 0})
+local MAX_PENTATE = AlyaNum.new({sign = 1, multiplicand = 10000000000, exponent = 8, tetrate = 8, pentate = FLOAT64_SAFE_LIMIT, hexate = 0, heptate = 0})
+local MAX_HEXATE = AlyaNum.new({sign = 1, multiplicand = 10000000000, exponent = 8, tetrate = 8, pentate = 8, hexate = FLOAT64_SAFE_LIMIT, heptate = 0})
 local MAX_FRACTIONAL = AlyaNum.new(0.000000001)
 local MAX_SUFFIX = AlyaNum.new({sign = 1, multiplicand = 3000000, exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 local MAX_SCIENTIFIC = AlyaNum.new({sign = 1, multiplicand = 300008, exponent = 4, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
@@ -499,7 +501,7 @@ function slog(self: AlyaNum, base: Number): AlyaNum?
 	elseif moreThan(max(self, base), MAX_POW) then
 		if moreThan(self, base) then
 			self.tetrate -= 1
-			return add(self, AlyaNum.new(-self.tetrate))
+			return fix(add(self, AlyaNum.new(-self.exponent)))
 		end
 		return ZERO
 	end
@@ -524,7 +526,129 @@ function slog(self: AlyaNum, base: Number): AlyaNum?
 		end
 	end
 	if moreThan(self, TEN) then
-		return q
+		return AlyaNum.new(q)
+	end
+end
+
+function pentlog(self: AlyaNum, base: Number): AlyaNum?
+	local self = {
+		sign = self.sign,
+		multiplicand = self.multiplicand,
+		exponent = self.exponent,
+		tetrate = self.tetrate,
+		pentate = self.pentate,
+		hexate = self.hexate,
+		heptate = self.heptate
+	}
+	local base = AlyaNum.new(base)
+	if self.sign == -1 then
+		return NEG_ONE
+
+	elseif equalsOne(self)  then
+		return ZERO
+
+	elseif equals(self, base) then
+		return ONE
+
+	elseif lessThan(base, ERECIPE) then
+		return self
+
+	elseif moreThan(max(self, base), MAX_PENTATE) then
+		if moreThan(self, base) then
+			return self
+		end
+		return ZERO
+
+	elseif moreThan(max(self, base), MAX_TETRATE) then
+		if moreThan(self, base) then
+			self.pentate -= 1
+			return fix(add(self, AlyaNum.new(-self.tetrate)))
+		end
+		return ZERO
+	end
+
+	local q = 0
+	local t = (self.tetrate or 0) - (base.tetrate or 0)
+	if t > 3 then
+		local p = t - 3
+		q += p
+		self.tetrate -= p
+	end
+	for i = 1, 99 do
+		if self.sign == -1 then
+			self = tetrate(base, self)
+			q -= 1
+		else if lessEquals(self, ONE) then
+				return AlyaNum.new(q + toNumber(self) - 1)	
+			else 
+				q += 1
+				self = slog(self, base)
+			end
+		end
+	end
+	if moreThan(self, TEN) then
+		return AlyaNum.new(q)
+	end
+end
+
+function hextlog(self: AlyaNum, base: Number): AlyaNum?
+	local self = {
+		sign = self.sign,
+		multiplicand = self.multiplicand,
+		exponent = self.exponent,
+		tetrate = self.tetrate,
+		pentate = self.pentate,
+		hexate = self.hexate,
+		heptate = self.heptate
+	}
+	local base = AlyaNum.new(base)
+	if self.sign == -1 then
+		return NEG_ONE
+
+	elseif equalsOne(self)  then
+		return ZERO
+
+	elseif equals(self, base) then
+		return ONE
+
+	elseif lessThan(base, ERECIPE) then
+		return self
+
+	elseif moreThan(max(self, base), MAX_HEXATE) then
+		if moreThan(self, base) then
+			return self
+		end
+		return ZERO
+
+	elseif moreThan(max(self, base), MAX_PENTATE) then
+		if moreThan(self, base) then
+			self.hexate -= 1
+			return fix(add(self, AlyaNum.new(-self.pentate)))
+		end
+		return ZERO
+	end
+
+	local q = 0
+	local t = (self.pentate or 0) - (base.pentate or 0)
+	if t > 3 then
+		local p = t - 3
+		q += p
+		self.pentate -= p
+	end
+	for i = 1, 99 do
+		if self.sign == -1 then
+			self = pentate(base, self)
+			q -= 1
+		else if lessEquals(self, ONE) then
+				return AlyaNum.new(q + toNumber(self) - 1)	
+			else 
+				q += 1
+				self = pentlog(self, base)
+			end
+		end
+	end
+	if moreThan(self, TEN) then
+		return AlyaNum.new(q)
 	end
 end
 
@@ -629,7 +753,7 @@ function pentate(self: AlyaNum, number: AlyaNum): AlyaNum
 	end
 
 	local maxNum = max(self, number)
-	if moreThan(maxNum, MAX_TETRATE) then
+	if moreThan(maxNum, MAX_PENTATE) then
 		return maxNum
 
 	elseif moreThan(self, MAX_POW) or moreThan(number, MAX_SAFE) then
@@ -644,7 +768,7 @@ function pentate(self: AlyaNum, number: AlyaNum): AlyaNum
 	end
 	local revertedPentate = toNumber(number)
 	local floored = math.floor(revertedPentate)
-	local result = pow(self, AlyaNum.new(revertedPentate - floored))
+	local result = tetrate(self, AlyaNum.new(revertedPentate - floored))
 	local check: AlyaNum
 	local count = 0
 	for i = 1, 100 do
@@ -661,7 +785,7 @@ function pentate(self: AlyaNum, number: AlyaNum): AlyaNum
 			check = result
 			floored -= 1
 		else
-			result = log(result, self)
+			result = slog(result, self)
 			if check ~= nil and equals(check, result) then
 				floored = 0
 				break
@@ -701,7 +825,7 @@ function hexate(self: AlyaNum, number: AlyaNum): AlyaNum
 	end
 
 	local maxNum = max(self, number)
-	if moreThan(maxNum, MAX_TETRATE) then
+	if moreThan(maxNum, MAX_HEXATE) then
 		return maxNum
 
 	elseif moreThan(self, MAX_POW) or moreThan(number, MAX_SAFE) then
@@ -710,13 +834,14 @@ function hexate(self: AlyaNum, number: AlyaNum): AlyaNum
 			return div(lambertw(nel), nel)
 		end
 		local q = add(slog(self, TEN), number)
+		q.tetrate = number.tetrate
 		q.pentate = number.pentate
 		q.hexate = number.hexate + 1
 		return fix(q)
 	end
 	local revertedHexate = toNumber(number)
 	local floored = math.floor(revertedHexate)
-	local result = pow(self, AlyaNum.new(revertedHexate - floored))
+	local result = pentate(self, AlyaNum.new(revertedHexate - floored))
 	local check: AlyaNum
 	local count = 0
 	for i = 1, 100 do
@@ -733,7 +858,7 @@ function hexate(self: AlyaNum, number: AlyaNum): AlyaNum
 			check = result
 			floored -= 1
 		else
-			result = log(result, self)
+			result = pentlog(result, self)
 			if check ~= nil and equals(check, result) then
 				floored = 0
 				break
@@ -745,7 +870,7 @@ function hexate(self: AlyaNum, number: AlyaNum): AlyaNum
 	if count == 100 or lessThan(self, ERECIPE) then
 		floored = 0
 	end
-	result.tetrate += floored
+	result.pentate += floored
 	return fix(result)
 end
 
@@ -1509,6 +1634,12 @@ AlyaNum.lambertw = function(self: AlyaNum)
 end
 AlyaNum.slog = function(self: AlyaNum, number: Number)
 	return slog(self, AlyaNum.new(number))
+end
+AlyaNum.pentlog = function(self: AlyaNum, number: Number)
+	return pentlog(self, AlyaNum.new(number))
+end
+AlyaNum.hextlog = function(self: AlyaNum, number: Number)
+	return hextlog(self, AlyaNum.new(number))
 end
 AlyaNum.tet = function(self: AlyaNum, number: Number)
 	return tetrate(self, AlyaNum.new(number))
