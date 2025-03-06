@@ -1,5 +1,12 @@
 --!optimize 2
 --!native
+--!nocheck
+
+--[[
+	Creator: @evilbocchi(github)
+	Contributor: @MemFaceGo(github)
+	Contributor: @wiindsom(github)
+]]
 
 local THRESHOLD = 16
 local DECIMAL_POINTS = 2
@@ -116,7 +123,7 @@ end
 function AlyaNum.new(number: number | BaseAlyaNum): AlyaNum
 	if type(number) == "number" then
 		if number == HUGE then
-			error("cannot parse math.huge")
+			return setmetatable({ sign = 0, multiplicand = 0, exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0 }, AlyaNum)
 			-- dont use AlyaNum.new for numbers larger than 10^308;
 			-- either split it into two smaller numbers e.g. AlyaNum.new(10):pow(900) or use AlyaNum.fromScientific
 		end
@@ -166,38 +173,38 @@ function add(self: AlyaNum, number: AlyaNum): AlyaNum
 		-- number too big to matter
 		return maxAbsNum
 	end
-	
+
 	if maxAbsNum.exponent == 0 then
 		-- minAbsNum exponent is 0
 		-- no need for fancy calculations just add them lol
 		return fix({sign = 1, multiplicand = (minAbsNum.sign * minAbsNum.multiplicand) + (maxAbsNum.sign * maxAbsNum.multiplicand), exponent = 0, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 	end
-	
+
 	local adjMinMult = minAbsNum.exponent == 0 and math.log10(minAbsNum.multiplicand) or minAbsNum.multiplicand
-	
+
 	-- both exponents are 1
 	if maxAbsNum.multiplicand - adjMinMult >= LOG10_FLOAT64_LIMIT then
 		return maxAbsNum
 	end
-	
-	
+
+
 	local minSign, maxSign, minMult, maxMult = minAbsNum.sign, maxAbsNum.sign, minAbsNum.multiplicand, maxAbsNum.multiplicand
 
 	-- wow! good code!
 	-- yeah this was the simplest and most optimized way i could think of for handling negatives
-	
+
 	if maxSign == minSign then
-		
+
 		-- 10^(x+log(10^(y-x)+1)) = 10^x+10^y
 		return fix({sign = maxSign, multiplicand = adjMinMult + math.log10(math.pow(10, maxMult - adjMinMult) + 1), exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 	end
-	
+
 	if adjMinMult == maxMult then -- x + -x = 0
 		return ZERO
 	end
-	
+
 	-- maxMult will always be higher than adjMinMult, so the resulting number is signed in maxSign
-	
+
 	-- 10^(x+log(10^(y-x)-1)) = 10^x-10^y
 	return fix({sign = maxSign, multiplicand = adjMinMult + math.log10(math.pow(10, maxMult - adjMinMult) - 1), exponent = 1, tetrate = 0, pentate = 0, hexate = 0, heptate = 0})
 end
@@ -1534,7 +1541,46 @@ function AlyaNum.lbdecode(int: number): AlyaNum
 		if xd[zeros + 4] == 0 then
 			table.remove(xd)
 		end
-		return AlyaNum.fromOmega({sign, xd}) -- lol
+		return AlyaNum.fromOmega({sign, xd})
+	end
+end
+
+function AlyaNum.getPercentage(numerator: HyperDigits, denominator: HyperDigits)
+	if denominator.sign == 0 or denominator.exponent == HUGE then
+		return AlyaNum.new(0)
+	end
+
+	local percentage = numerator:div(denominator)
+
+	percentage = AlyaNum.min(AlyaNum.max(percentage, AlyaNum.new(0)), AlyaNum.new(1))
+
+	local scaled = percentage:mul(AlyaNum.new(1000))
+	local rounded = scaled:add(AlyaNum.new(0.5)):floor():div(AlyaNum.new(1000))
+
+	return rounded
+end
+
+function AlyaNum.fromPercent(percent: string): AlyaNum
+	if not percent:match("^[-+]?[%d%.eE]+%%?$") then
+		return AlyaNum.new(0)
+	end
+
+	local numStr = percent:gsub("%%", "")
+	local num = AlyaNum.fromString(numStr):div(AlyaNum.new(100))
+
+	num.isPercent = true
+
+	return num
+end
+
+function AlyaNum.toPercent(number: AlyaNum): string
+	local percentValue = number:mul(AlyaNum.new(100))
+	local numValue = percentValue:toNumber()
+
+	if numValue % 1 == 0 then
+		return string.format("%d%%", numValue)
+	else
+		return string.format(`%.{DECIMAL_POINTS}f%%`, numValue)
 	end
 end
 
@@ -1555,13 +1601,31 @@ function AlyaNum.changeDefaultAbbreviation(mode: "suffix" | "scientific")
 	DEFAULT_ABBREVIATION = mode
 end
 
+local function isPercent(num: HyperDigits)
+	return num.isPercent == true
+end
+
 -- exports
 AlyaNum.fix = fix
 AlyaNum.add = function(self: AlyaNum, number: Number)
-	return add(self, AlyaNum.new(number))
+	local num = AlyaNum.new(number)
+	if isPercent(self) and isPercent(num) then
+		return add(self, num)
+	end
+	if isPercent(num) then
+		return add(self, mul(self, num))
+	end
+	return add(self, num)
 end
 AlyaNum.sub = function(self: AlyaNum, number: Number)
-	return add(self, unary(AlyaNum.new(number)))
+	local num = AlyaNum.new(number)
+	if isPercent(self) and isPercent(num) then
+		return add(self, unary(num))
+	end
+	if isPercent(num) then
+		return add(self, unary(mul(self, num)))
+	end
+	return add(self, unary(num))
 end
 AlyaNum.mul = function(self: AlyaNum, number: Number)
 	return mul(self, AlyaNum.new(number))
@@ -1573,7 +1637,14 @@ AlyaNum.pow = function(self: AlyaNum, number: Number)
 	return pow(self, AlyaNum.new(number))
 end
 AlyaNum.mod = function(self: AlyaNum, number: Number)
-	return mod(self, AlyaNum.new(number))
+	local num = AlyaNum.new(number)
+	if isPercent(self) and isPercent(num) then
+		return mod(self, num)
+	end
+	if isPercent(num) then
+		return mod(self, mul(self, num))
+	end
+	return mod(self, num)
 end
 AlyaNum.root = function(self: AlyaNum, number: Number)
 	return root(self, AlyaNum.new(number))
