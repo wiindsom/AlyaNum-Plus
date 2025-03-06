@@ -5,12 +5,12 @@ Primary difference is that it supports percentages(relative to DECIMAL_POINTS, f
 #### Example with fromPercent & toPercent:
 ```luau
 local AN = require("./path/to/AlyaNum")
-local a = AN.fromString("100")
 
 --[[
 @param fromPercent automatically detects numbers meaning % can be omitted when using fromPercent
 You can use scientific notation for example(1e10)
 ]]
+local a = AN.fromString("100")
 local b = AN.fromPercent("10%")
 
 print(a + b) -- should print 110
