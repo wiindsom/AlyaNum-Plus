@@ -10,6 +10,7 @@
 
 local THRESHOLD = 16
 local DECIMAL_POINTS = 2
+PERCENT_DECIMAL_POINTS
 local DEFAULT_ABBREVIATION: "suffix" | "scientific" = "suffix"
 local FLOAT64_LIMIT = 1.797693015e308
 local LOG10_FLOAT64_LIMIT = math.log10(FLOAT64_LIMIT)
@@ -1174,7 +1175,9 @@ function serikaNumToSuffix(mantissa: number, exponent: number): string?
 		return serikaNumEnforceDP(mantissa, exponent)
 	end
 	local suffix = exponent > 3002 and getTier2Suffix(exponent) or getTier1Suffix(exponent, true)
-	return suffix and serikaNumEnforceDP(mantissa, exponent % 3) .. suffix
+	local formattedMantissa = string.format(`%0.{DECIMAL_POINTS}f`, mantissa)
+	
+	return suffix and formattedMantissa .. suffix or formattedMantissa
 end
 
 
