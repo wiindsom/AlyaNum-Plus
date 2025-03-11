@@ -1176,8 +1176,7 @@ function serikaNumToSuffix(mantissa: number, exponent: number): string?
 	end
 	local suffix = exponent > 3002 and getTier2Suffix(exponent) or getTier1Suffix(exponent, true)
 	local formattedMantissa = string.format(`%0.{DECIMAL_POINTS}f`, mantissa)
-	
-	return suffix and formattedMantissa .. suffix or formattedMantissa
+	return suffix and serikaNumEnforceDP(formattedMantissa, exponent % 3)..suffix
 end
 
 
