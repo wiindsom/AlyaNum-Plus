@@ -1611,9 +1611,6 @@ end
 AlyaNum.fix = fix
 AlyaNum.add = function(self: AlyaNum, number: Number)
 	local num = AlyaNum.new(number)
-	if isPercent(self) and isPercent(num) then
-		return add(self, num)
-	end
 	if isPercent(num) then
 		return add(self, mul(self, num))
 	end
@@ -1621,9 +1618,6 @@ AlyaNum.add = function(self: AlyaNum, number: Number)
 end
 AlyaNum.sub = function(self: AlyaNum, number: Number)
 	local num = AlyaNum.new(number)
-	if isPercent(self) and isPercent(num) then
-		return add(self, unary(num))
-	end
 	if isPercent(num) then
 		return add(self, unary(mul(self, num)))
 	end
@@ -1640,9 +1634,6 @@ AlyaNum.pow = function(self: AlyaNum, number: Number)
 end
 AlyaNum.mod = function(self: AlyaNum, number: Number)
 	local num = AlyaNum.new(number)
-	if isPercent(self) and isPercent(num) then
-		return mod(self, num)
-	end
 	if isPercent(num) then
 		return mod(self, mul(self, num))
 	end
